@@ -49,9 +49,28 @@ Developer documentation for yast2-network
 
 @PREP@
 
-@BUILD@
+%build
+%{prefix}/bin/y2tool y2autoconf
+%{prefix}/bin/y2tool y2automake
+autoreconf --force --install
 
-@INSTALL@
+export CFLAGS="$RPM_OPT_FLAGS -DNDEBUG"
+export CXXFLAGS="$RPM_OPT_FLAGS -DNDEBUG"
+
+%{?suse_update_config:%{suse_update_config -f}}
+./configure --libdir=%{_libdir} --prefix=%{prefix} --mandir=%{_mandir}
+# V=1: verbose build in case we used AM_SILENT_RULES(yes)
+# so that RPM_OPT_FLAGS check works
+make %{?jobs:-j%jobs} V=1
+[ -e "%{prefix}/share/YaST2/data/devtools/NO_MAKE_CHECK" ] || Y2DIR=`pwd`/src make check DESTDIR="$RPM_BUILD_ROOT"
+
+%install
+make install DESTDIR="$RPM_BUILD_ROOT"
+for f in `find $RPM_BUILD_ROOT/%{prefix}/share/applications/YaST2/ -name "*.desktop"` ; do
+    d=${f##*/}
+    %suse_update_desktop_file -d ycc_${d%.desktop} ${d%.desktop}
+done
+
 %ifarch s390 s390x
 /bin/rm -f $RPM_BUILD_ROOT/@desktopdir@/dsl.desktop
 /bin/rm -f $RPM_BUILD_ROOT/@desktopdir@/isdn.desktop
