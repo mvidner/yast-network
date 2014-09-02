@@ -30,3 +30,39 @@ describe "LanItemsClass#ReadHw" do
     expect(Yast::LanItems.Items[1]["udev"]["driver"]).to eq "driver1"
   end
 end
+
+describe "LanItems#WriteUdevDriverRules" do
+  it "passes driver mapping from Items/udev/driver to SCR" do
+    items = {
+      0 => {
+        "hwinfo" => { "modalias" => "modaliasA" },
+        "udev" => { "driver" => "driverA" }
+      },
+      1 => {
+        "hwinfo" => { "modalias" => "modaliasA" },
+        "udev" => { }
+      },
+      2 => {
+        "hwinfo" => { "modalias" => "modaliasB" },
+        "udev" => { "driver" => "driverB" }
+      },
+      3 => {
+        "hwinfo" => { "modalias" => "modaliasC" },
+        "udev" => { }
+      },
+    }
+    Yast::LanItems.Items = items
+    Yast::LanItems.driver_options = {}
+
+    expected_scr = {
+      "driverA" => ['ENV{MODALIAS}=="modaliasA"', 'ENV{MODALIAS}="driverA"'],
+      "driverB" => ['ENV{MODALIAS}=="modaliasB"', 'ENV{MODALIAS}="driverB"']
+    }
+    expect(Yast::SCR).to receive(:Write).
+      with(Yast::Path.new(".udev_persistent.drivers"),
+           expected_scr)
+    allow(Yast::SCR).to receive(:Write).with(Yast::Path.new(".modules"), nil)
+
+    Yast::LanItems.WriteUdevDriverRules
+  end
+end
