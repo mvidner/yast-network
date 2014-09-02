@@ -652,37 +652,32 @@ module Yast
       true
     end
 
-    def WriteUdevDriverRules
+    # @param mapping Hash{String => String} mapping from modalias to driver
+    def write_driver_mapping_store(mapping)
       udev_drivers_rules = {}
-
-      Builtins.foreach(
-        Convert.convert(
-          Map.Keys(@Items),
-          :from => "list",
-          :to   => "list <integer>"
-        )
-      ) do |key|
-        driver = Ops.get_string(@Items, [key, "udev", "driver"], "")
-        if IsNotEmpty(driver)
-          modalias = Ops.get_string(@Items, [key, "hwinfo", "modalias"], "")
-          driver_rule = []
-
-          driver_rule = AddToUdevRule(
-            driver_rule,
-            Builtins.sformat("ENV{MODALIAS}==\"%1\"", modalias)
-          )
-          driver_rule = AddToUdevRule(
-            driver_rule,
-            Builtins.sformat("ENV{MODALIAS}=\"%1\"", driver)
-          )
-
-          Ops.set(udev_drivers_rules, driver, driver_rule)
-        end
+      mapping.each do |modalias, driver|
+        udev_drivers_rules[driver] = [
+          "ENV{MODALIAS}==\"#{modalias}\"",
+          "ENV{MODALIAS}=\"#{driver}\""
+        ]
       end
-
       Builtins.y2milestone("write drivers udev rules: %1", udev_drivers_rules)
 
       SCR.Write(path(".udev_persistent.drivers"), udev_drivers_rules)
+    end
+
+    def WriteUdevDriverRules
+      driver_mapping = {}
+
+      Items().each_value do |item|
+        driver = item.fetch("udev", {}).fetch("driver", "")
+        if !driver.empty?
+          modalias = item.fetch("hwinfo", {}).fetch("modalias", "")
+          driver_mapping[modalias] = driver
+        end
+      end
+
+      write_driver_mapping_store(driver_mapping)
 
       # write rules from driver
       Builtins.foreach(
