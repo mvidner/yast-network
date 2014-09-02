@@ -10,7 +10,7 @@ module Yast
 
     # @return Hash{String => String} mapping from modalias to driver
     def read
-      udev_drivers_rules = SCR.Read(PATH)
+      udev_drivers_rules = SCR.Read(PATH) || []
       mapping = {}
       udev_drivers_rules.each do |modalias, rule_items|
         driver = rule_items[1].split("=").last.delete('"')
