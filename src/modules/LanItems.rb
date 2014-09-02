@@ -994,11 +994,8 @@ module Yast
       # Hardware = [$["active":true, "bus":"pci", "busid":"0000:02:00.0", "dev_name":"wlan0", "drivers":[$["active":true, "modprobe":true, "modules":[["ath5k" , ""]]]], "link":true, "mac":"00:22:43:37:55:c3", "modalias":"pci:v0000168Cd0000001Csv00001A3Bsd00001026bc02s c00i00", "module":"ath5k", "name":"AR242x 802.11abg Wireless PCI Express Adapter", "num":0, "options":"", "re quires":[], "sysfs_id":"/devices/pci0000:00/0000:00:1c.1/0000:02:00.0", "type":"wlan", "udi":"/org/freedeskto p/Hal/devices/pci_168c_1c", "wl_auth_modes":["open", "sharedkey", "wpa-psk", "wpa-eap"], "wl_bitrates":nil, " wl_channels":["1", "2", "3", "4", "5", "6", "7", "8", "9", "10", "11"], "wl_enc_modes":["WEP40", "WEP104", "T KIP", "CCMP"]], $["active":true, "bus":"pci", "busid":"0000:01:00.0", "dev_name":"eth0", "drivers":[$["active ":true, "modprobe":true, "modules":[["atl1e", ""]]]], "link":false, "mac":"00:23:54:3f:7c:c3", "modalias":"pc i:v00001969d00001026sv00001043sd00008324bc02sc00i00", "module":"atl1e", "name":"L1 Gigabit Ethernet Adapter", "num":1, "options":"", "requires":[], "sysfs_id":"/devices/pci0000:00/0000:00:1c.3/0000:01:00.0", "type":"et h", "udi":"/org/freedesktop/Hal/devices/pci_1969_1026", "wl_auth_modes":nil, "wl_bitrates":nil, "wl_channels" :nil, "wl_enc_modes":nil]];
       ReadUdevDriverRules()
 
-      udev_drivers_rules = Convert.convert(
-        SCR.Read(path(".udev_persistent.drivers")),
-        :from => "any",
-        :to   => "map <string, any>"
-      )
+      driver_mapping = read_driver_mapping_store
+
       Builtins.foreach(@Hardware) do |hwitem|
         udev_net = Ops.get_string(hwitem, "dev_name", "") != "" ?
           Ops.get_list(
@@ -1007,25 +1004,9 @@ module Yast
             []
           ) :
           []
-        mod = Builtins.deletechars(
-          Ops.get(
-            Builtins.splitstring(
-              Ops.get(
-                Ops.get_list(
-                  udev_drivers_rules,
-                  Ops.get_string(hwitem, "modalias", ""),
-                  []
-                ),
-                1,
-                ""
-              ),
-              "="
-            ),
-            1,
-            ""
-          ),
-          "\""
-        )
+        modalias = hwitem.fetch("modalias", "")
+        mod = driver_mapping.fetch(modalias, "")
+
         Ops.set(
           @Items,
           Builtins.size(@Items),
@@ -1037,6 +1018,17 @@ module Yast
       end
 
       nil
+    end
+
+    # @return Hash{String => String} mapping from modalias to driver
+    def read_driver_mapping_store
+      udev_drivers_rules = SCR.Read(path(".udev_persistent.drivers"))
+      mapping = {}
+      udev_drivers_rules.each do |modalias, rule_items|
+        driver = rule_items[1].split("=").last.delete('"')
+        mapping[modalias] = driver
+      end
+      mapping
     end
 
     # initializates @Items
