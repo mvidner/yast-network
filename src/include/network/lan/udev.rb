@@ -28,19 +28,5 @@ module Yast
 
       Builtins.filter(rule) { |atom| !Builtins.regexpmatch(atom, pattern) }
     end
-
-    # Adds (key, operator, value) tripplet into given udev rule
-    #
-    # Tripplet is given as a string in form KEY="VALUE" or
-    # MATCHKEY=="MATCHVALUE"
-    def AddToUdevRule(rule, tripplet)
-      rule = deep_copy(rule)
-      if !Builtins.regexpmatch(tripplet, ".+={1,2}\".*\"")
-        return deep_copy(rule)
-      end
-      rule = [] if rule == nil
-
-      Builtins.add(rule, tripplet)
-    end
   end
 end

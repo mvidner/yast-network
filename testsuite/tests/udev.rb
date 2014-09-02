@@ -98,13 +98,6 @@ module Yast
       @new_rules = RemoveKeyFromUdevRule(@rule, "KERNEL")
       Assert.Equal(false, Builtins.contains(@new_rules, "KERNEL=\"eth*\""))
 
-      @rule = Ops.get_list(LanItems.Items, [0, "udev", "net"], [])
-      @new_rules = AddToUdevRule(@rule, "ENV{MODALIAS}==\"e1000\"")
-      Assert.Equal(
-        true,
-        Builtins.contains(@new_rules, "ENV{MODALIAS}==\"e1000\"")
-      )
-
       nil
     end
   end
