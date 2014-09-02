@@ -1,13 +1,16 @@
 # encoding: utf-8
 
+require "yast"
 module Yast
   # Stores the mapping between hardware (identified by a modalias)
   # and its driver.
   module DriverMappingStore
 
+    PATH = Yast::Path.new ".udev_persistent.drivers"
+
     # @return Hash{String => String} mapping from modalias to driver
     def read
-      udev_drivers_rules = SCR.Read(path(".udev_persistent.drivers"))
+      udev_drivers_rules = SCR.Read(PATH)
       mapping = {}
       udev_drivers_rules.each do |modalias, rule_items|
         driver = rule_items[1].split("=").last.delete('"')
@@ -28,7 +31,7 @@ module Yast
       end
       Builtins.y2milestone("write drivers udev rules: %1", udev_drivers_rules)
 
-      SCR.Write(path(".udev_persistent.drivers"), udev_drivers_rules)
+      SCR.Write(PATH, udev_drivers_rules)
     end
     module_function :write
 
