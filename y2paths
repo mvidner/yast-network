@@ -1,0 +1,9 @@
+#!/usr/bin/env ruby
+BINDINGS_DIR = "../ruby-bindings"
+rubylib = "#{BINDINGS_DIR}/src/ruby"
+
+BASE_DIR = "../yast2"
+BASE_LIBS = ["runlevel", "systemd", "network"]
+y2dir = BASE_LIBS.map {|d| "#{BASE_DIR}/library/#{d}/src"}.join ":"
+
+exec "Y2DIR=#{y2dir} RUBYLIB=#{rubylib} #{ARGV.join ' '}"

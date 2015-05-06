@@ -1,0 +1,5 @@
+#!/usr/bin/env ruby
+if ! ARGV.join(" ").include? "_test.rb"
+  files="test/*_test.rb"
+end
+exec "rspec #{files} #{ARGV.join ' '}"
