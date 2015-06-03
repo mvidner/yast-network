@@ -16,6 +16,11 @@ describe Routing do
   SYSCTL_IPV4_PATH = path(RoutingClass::SYSCTL_IPV4_PATH)
   SYSCTL_IPV6_PATH = path(RoutingClass::SYSCTL_IPV6_PATH)
 
+  before(:each) do
+    allow(NetworkInterfaces).to receive(:List) { [] }
+#    allow(SuSEFirewall).to receive(:IsEnabled) { puts "1st FWE called, false"; false }
+  end
+
   # This describes how Routing should behave independently on the way how its
   # internal state was reached
   shared_examples_for "routing setter" do
@@ -43,7 +48,20 @@ describe Routing do
 
     context "when Firewall is enabled" do
       before(:each) do
-        allow(SuSEFirewall).to receive(:IsEnabled) { true }
+        sfw = double("SFW")
+        if false
+          allow(sfw).to receive(:IsEnabled) { puts "FWE called, true"; true }
+          puts "FWE SETUP to true"
+          allow(sfw).to receive(:GetSupportRoute) { puts "GSR called, x"; forward_v4 }
+          puts "GSR SETUP to #{forward_v4}"
+        else
+          allow(sfw).to receive_messages(
+                                       :IsEnabled => true,
+                                       :GetSupportRoute => forward_v4
+                                       )
+          puts "MULTISTUBBED"
+        end
+        stub_const("Yast::SuSEFirewall", sfw)
       end
 
       describe "#WriteIPForwarding" do
@@ -62,6 +80,12 @@ describe Routing do
     context "when Firewall is disabled" do
       before(:each) do
         allow(SuSEFirewall).to receive(:IsEnabled) { false }
+        expect(SCR)
+            .to receive(:Read)
+              .with(SYSCTL_IPV4_PATH) { @value4 }
+        expect(SCR)
+            .to receive(:Read)
+              .with(SYSCTL_IPV6_PATH) { @value6 }
       end
 
       describe "#WriteIPForwarding" do
@@ -262,13 +286,8 @@ describe Routing do
           expect(SCR)
             .to receive(:Read)
               .with(path(".routes")) { MOCKED_ROUTES }
-          expect(SCR)
-            .to receive(:Read)
-              .with(SYSCTL_IPV4_PATH) { ipv4 }
-          expect(SCR)
-            .to receive(:Read)
-              .with(SYSCTL_IPV6_PATH) { ipv6 }
-
+          NetworkInterfaces.instance_variable_set(:@initialized, false)
+# BWAAA, this will read the settings before the shared example mocks them :(
           Routing.Read
         end
 

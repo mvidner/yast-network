@@ -139,7 +139,9 @@ module Yast
 
     def ReadIPForwarding
       if SuSEFirewall.IsEnabled
+puts "FW is enabled"
         @Forward_v4 = SuSEFirewall.GetSupportRoute
+puts "GSR returned: #{@Forward_v4}"
         # FIXME: missing support for setting IPv6 forwarding enablement in
         # SuSEFirewall module and in SuSEFirewall2 at all
       else
@@ -192,6 +194,7 @@ module Yast
       # read available devices
       NetworkInterfaces.Read
       @devices = NetworkInterfaces.List("")
+puts @devices.inspect
 
       # read routes
       @Routes = SCR.Read(path(".routes")) || []
