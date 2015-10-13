@@ -275,146 +275,71 @@ module Yast
     end
 
 
+    # @param  [Hash{String => Hash{String => Object}}] aliases, keyed "0", "1"
+    # @return [Hash{String => Hash{String => Object}}] keyed "alias0", "alias1"
+    def to_ay_aliases(aliases)
+      Builtins.y2debug("val: %1", aliases)
+      # replace key "0" into "alias0" (bnc#372678)
+      pairs = aliases.map do |k, v|
+        ["alias#{k}", v]
+      end
+      Hash[pairs]
+    end
+
     # Convert data from native network to autoyast for XML
     # @param [Hash] settings native network settings
     # @return [Hash] autoyast network settings
     def ToAY(settings)
       settings = deep_copy(settings)
       interfaces = []
-      discard = ["UDI", "_nm_name"]
-      Builtins.foreach(Ops.get_map(settings, "devices", {})) do |type, devsmap|
-        Builtins.foreach(
-          Convert.convert(devsmap, :from => "map", :to => "map <string, map>")
-        ) do |device, devmap|
+      discard = ["UDI", "_nm_name", "_NM_NAME"]
+      settings["devices"].each do |type, devsmap|
+        devsmap.each do |device, devmap|
           newmap = {}
-          Builtins.foreach(
-            Convert.convert(devmap, :from => "map", :to => "map <string, any>")
-          ) do |key, val|
+          devmap.each do |key, val|
             Builtins.y2milestone("Adding: %1=%2", key, val)
             if key != "_aliases"
-              if Ops.greater_than(Builtins.size(Convert.to_string(val)), 0) &&
-                  !Builtins.contains(discard, key) &&
-                    !Builtins.contains(discard, Builtins.tolower(key))
-                Ops.set(newmap, Builtins.tolower(key), Convert.to_string(val))
+              val_s = val.to_s
+              if val_s != "" && !discard.include?(key)
+                newmap[Builtins.tolower(key)] = val_s
               end
             else
-              # handle aliases
-              Builtins.y2debug("val: %1", val)
-              # if aliases are empty, then ommit it
-              if Ops.greater_than(Builtins.size(Convert.to_map(val)), 0)
-                # replace key "0" into "alias0" (bnc#372678)
-                Builtins.foreach(
-                  Convert.convert(
-                    val,
-                    :from => "any",
-                    :to   => "map <string, map <string, any>>"
-                  )
-                ) do |k, v|
-                  Ops.set(
-                    newmap,
-                    Builtins.tolower("aliases"),
-                    Builtins.add(
-                      Ops.get_map(newmap, Builtins.tolower("aliases"), {}),
-                      Builtins.sformat("alias%1", k),
-                      v
-                    )
-                  )
-                end
-              end
+              aliases = to_ay_aliases(val)
+              newmap["aliases"] = aliases unless aliases.empty?
             end
           end
-          if Builtins.deletechars(device, "0123456789") == ""
-            Ops.set(newmap, "device", device)
-          else
-            Ops.set(newmap, "device", device)
-          end
-          interfaces = Builtins.add(interfaces, newmap)
+          newmap["device"] = device
+          interfaces << newmap
         end
       end
 
-      # Modules
+      s390_devices = settings["s390-devices"].map {|_device, mod| mod}
+      net_udev     = settings["net-udev"].map     {|_device, mod| mod}
+      routing      = settings["routing"]
 
-      s390_devices = []
-      Builtins.foreach(Ops.get_map(settings, "s390-devices", {})) do |device, mod|
-        s390_devices = Builtins.add(s390_devices, mod)
-      end
+      dhcp = settings["config"].fetch("dhcp", {})
+      dns = settings["dns"]
+      dns["dhcp_hostname"] = dhcp.fetch("DHCLIENT_SET_HOSTNAME", false)
 
-      net_udev = []
-      Builtins.foreach(Ops.get_map(settings, "net-udev", {})) do |device, mod|
-        net_udev = Builtins.add(net_udev, mod)
-      end
-
-      modules = []
-      Builtins.foreach(Ops.get_map(settings, "hwcfg", {})) do |device, mod|
-        newmap = {}
-        Ops.set(newmap, "device", device)
-        Ops.set(newmap, "module", Ops.get_string(mod, "MODULE", ""))
-        Ops.set(newmap, "options", Ops.get_string(mod, "MODULE_OPTIONS", ""))
-        modules = Builtins.add(modules, newmap)
-      end
-
-      config = Ops.get_map(settings, "config", {})
-      dhcp = Ops.get_map(config, "dhcp", {})
-      dhcp_hostname = Ops.get_boolean(dhcp, "DHCLIENT_SET_HOSTNAME", false)
-      dns = Ops.get_map(settings, "dns", {})
-      Ops.set(dns, "dhcp_hostname", dhcp_hostname)
-      dhcpopts = {}
-      if Builtins.haskey(dhcp, "DHCLIENT_HOSTNAME_OPTION")
-        Ops.set(
-          dhcpopts,
-          "dhclient_hostname_option",
-          Ops.get_string(dhcp, "DHCLIENT_HOSTNAME_OPTION", "AUTO")
-        )
-      end
-      if Builtins.haskey(dhcp, "DHCLIENT_ADDITIONAL_OPTIONS")
-        Ops.set(
-          dhcpopts,
-          "dhclient_additional_options",
-          Ops.get_string(dhcp, "DHCLIENT_ADDITIONAL_OPTIONS", "")
-        )
-      end
-      if Builtins.haskey(dhcp, "DHCLIENT_CLIENT_ID")
-        Ops.set(
-          dhcpopts,
-          "dhclient_client_id",
-          Ops.get_string(dhcp, "DHCLIENT_CLIENT_ID", "")
-        )
-      end
-
+      dhcpopts = {
+        "dhclient_hostname_option"    => dhcp["DHCLIENT_HOSTNAME_OPTION"],
+        "dhclient_additional_options" => dhcp["DHCLIENT_ADDITIONAL_OPTIONS"],
+        "dhclient_client_id"          => dhcp["DHCLIENT_CLIENT_ID"]
+      }
+      dhcpopts.reject! {|_k, v| v.nil? }
 
       ret = {}
-      Ops.set(ret, "managed", Ops.get_boolean(settings, "managed", false))
-      if Builtins.haskey(settings, "ipv6")
-        Ops.set(ret, "ipv6", Ops.get_boolean(settings, "ipv6", true))
-      end
-      Ops.set(
-        ret,
-        "keep_install_network",
-        Ops.get_boolean(settings, "keep_install_network", false)
-      )
-      if Ops.greater_than(Builtins.size(modules), 0)
-        Ops.set(ret, "modules", modules)
-      end
-      Ops.set(ret, "dns", dns) if Ops.greater_than(Builtins.size(dns), 0)
-      if Ops.greater_than(Builtins.size(dhcpopts), 0)
-        Ops.set(ret, "dhcp_options", dhcpopts)
-      end
-      if Ops.greater_than(
-          Builtins.size(Ops.get_map(settings, "routing", {})),
-          0
-        )
-        Ops.set(ret, "routing", Ops.get_map(settings, "routing", {}))
-      end
-      if Ops.greater_than(Builtins.size(interfaces), 0)
-        Ops.set(ret, "interfaces", interfaces)
-      end
-      if Ops.greater_than(Builtins.size(s390_devices), 0)
-        Ops.set(ret, "s390-devices", s390_devices)
-      end
-      if Ops.greater_than(Builtins.size(net_udev), 0)
-        Ops.set(ret, "net-udev", net_udev)
-      end
-      deep_copy(ret)
+      ret["keep_install_network"] = settings["keep_install_network"]
+      ret["managed"]      = settings["managed"]
+      ret["ipv6"]         = settings["ipv6"]
+      ret["dns"]          = dns          unless dns.empty?
+      ret["dhcp_options"] = dhcpopts     unless dhcpopts.empty?
+      ret["routing"]      = routing      unless routing.empty?
+      ret["interfaces"]   = interfaces   unless interfaces.empty?
+      ret["s390-devices"] = s390_devices unless s390_devices.empty?
+      ret["net-udev"]     = net_udev     unless net_udev.empty?
+
+      ret
     end
   end
 end
