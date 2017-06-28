@@ -35,7 +35,7 @@ module Yast
     include Logger
 
     def main
-      Yast.import "Storage"
+#      Yast.import "Storage"
     end
 
     # Ask /proc/mounts what device a mount point is using.

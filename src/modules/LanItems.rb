@@ -59,7 +59,7 @@ module Yast
       Yast.import "NetworkConfig"
       Yast.import "NetworkStorage"
       Yast.import "Host"
-      Yast.import "Storage"
+#      Yast.import "Storage"
       Yast.import "Directory"
       Yast.import "Stage"
       Yast.include self, "network/complex.rb"
