@@ -30,6 +30,7 @@
 # Manages resolv.conf and (fully qualified) hostname, also
 # respecting DHCP.
 require "yast"
+require "network/box"
 
 module Yast
   class DNSClass < Module
@@ -37,6 +38,12 @@ module Yast
 
     HOSTNAME_FILE = "hostname".freeze
     HOSTNAME_PATH = "/etc/" + HOSTNAME_FILE
+
+    publish variable: :dhcp_hostname, type: "boolean"
+    publish variable: :write_hostname, type: "boolean"
+    # now redefine them
+    box_accessor :dhcp_hostname
+    box_accessor :write_hostname
 
     def main
       Yast.import "UI"
@@ -71,8 +78,15 @@ module Yast
       @nameservers = []
       @searchlist = []
 
-      @dhcp_hostname = false
-      @write_hostname = false
+      # FIXME: do we need the former initialization to false?
+      dpath = ".sysconfig.network.dhcp"
+      @dhcp_hostname_box = Yast2::SysconfigBooleanBox.new(path: "#{dpath}.DHCLIENT_SET_HOSTNAME")
+      @write_hostname_box = Yast2::SysconfigBooleanBox.new(path: "#{dpath}.WRITE_HOSTNAME_TO_HOSTS")
+
+      @sysconfig_dhcp = Yast2::SysconfigBoxGroup.new(path: dpath)
+      @sysconfig_dhcp << @dhcp_hostname_box
+      @sysconfig_dhcp << @write_hostname_box
+
       @resolv_conf_policy = ""
 
       # fully qualified
@@ -282,8 +296,8 @@ module Yast
     def Read
       return true if @initialized == true
 
-      @dhcp_hostname = dhclient_set_hostname
-      @write_hostname = get_write_hostname_to_hosts
+      @dhcp_hostname_box.reset
+      @write_hostname_box.reset
 
       @resolv_conf_policy = Convert.to_string(
         SCR.Read(path(".sysconfig.network.config.NETCONFIG_DNS_POLICY"))
@@ -643,24 +657,8 @@ module Yast
 
     # Updates /etc/sysconfig/network/dhcp
     def update_sysconfig_dhcp
-      if dhclient_set_hostname != @dhcp_hostname || get_write_hostname_to_hosts != @write_hostname
-        log.info("dhcp_hostname=#{@dhcp_hostname}")
-        log.info("write_hostname=#{@write_hostname}")
-
-        # @dhcp_hostname and @wrote_hostname can currently be nil only when
-        # not present in original file. So, do not add it in such case.
-        SCR.Write(
-          path(".sysconfig.network.dhcp.DHCLIENT_SET_HOSTNAME"),
-          @dhcp_hostname ? "yes" : "no"
-        ) if !@dhcp_hostname.nil?
-        SCR.Write(
-          path(".sysconfig.network.dhcp.WRITE_HOSTNAME_TO_HOSTS"),
-          @write_hostname ? "yes" : "no"
-        ) if !@write_hostname.nil?
-        SCR.Write(path(".sysconfig.network.dhcp"), nil)
-      else
-        log.info("No update for /etc/sysconfig/network/dhcp")
-      end
+      # FIXME: log the commits, writes
+      @sysconfig_dhcp.commit
     end
 
     # Updates system with new hostname
@@ -706,32 +704,11 @@ module Yast
       SCR.Execute(path(".target.bash"), "/sbin/netconfig update")
     end
 
-    # A constant for translating sysconfig's yes/no values into boolean
-    SYSCFG_TO_BOOL = { "yes" => true, "no" => false }.freeze
-
-    # Reads value of DHCLIENT_SET_HOSTNAME and translates it to boolean
-    #
-    # return {true, false, nil} "yes" => true, "no" => false, otherwise or not
-    # present => nil
-    def dhclient_set_hostname
-      SYSCFG_TO_BOOL[SCR.Read(path(".sysconfig.network.dhcp.DHCLIENT_SET_HOSTNAME"))]
-    end
-
-    # Reads value of WRITE_HOSTNAME_TO_HOSTS and translates it to boolean
-    #
-    # return {true, false, nil} "yes" => true, "no" => false, otherwise or not
-    # present => nil
-    def get_write_hostname_to_hosts
-      SYSCFG_TO_BOOL[SCR.Read(path(".sysconfig.network.dhcp.WRITE_HOSTNAME_TO_HOSTS"))]
-    end
-
     publish variable: :proposal_valid, type: "boolean"
     publish variable: :hostname, type: "string"
     publish variable: :domain, type: "string"
     publish variable: :nameservers, type: "list <string>"
     publish variable: :searchlist, type: "list <string>"
-    publish variable: :dhcp_hostname, type: "boolean"
-    publish variable: :write_hostname, type: "boolean"
     publish variable: :resolv_conf_policy, type: "string"
     publish variable: :modified, type: "boolean"
     publish function: :ReadNameserver, type: "boolean (string)"
