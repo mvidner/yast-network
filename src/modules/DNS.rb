@@ -377,7 +377,7 @@ module Yast
     # @return true if success
     def Import(settings)
       settings = deep_copy(settings)
-      @dhcp_hostname = settings.fetch("dhcp_hostname") { default_dhcp_hostname }
+      self.dhcp_hostname = settings.fetch("dhcp_hostname") { default_dhcp_hostname }
       # if not defined, set to 'auto'
       @resolv_conf_policy = Ops.get_string(
         settings,
@@ -386,7 +386,7 @@ module Yast
       )
 
       # user-defined value has higher priority - FaTE#305281
-      @write_hostname = if Builtins.haskey(settings, "write_hostname")
+      self.write_hostname = if Builtins.haskey(settings, "write_hostname")
         Ops.get_boolean(settings, "write_hostname", false)
       else
         # otherwise, use control.xml default
@@ -435,8 +435,8 @@ module Yast
       Builtins.y2milestone("domain=%1", @domain)
       Builtins.y2milestone(
         "dhcp_hostname=%1, write_hostname=%2",
-        @dhcp_hostname,
-        @write_hostname
+        dhcp_hostname,
+        write_hostname
       )
 
       true
@@ -463,11 +463,11 @@ module Yast
       if Ops.greater_than(Builtins.size(@searchlist), 0)
         Ops.set(expdns, "searchlist", Builtins.eval(@searchlist))
       end
-      Ops.set(expdns, "dhcp_hostname", @dhcp_hostname)
+      Ops.set(expdns, "dhcp_hostname", dhcp_hostname)
       # TODO: test if it really works with empty string
       Ops.set(expdns, "resolv_conf_policy", @resolv_conf_policy)
       # bnc#576495, FaTE#305281 - clone write_hostname, too
-      Ops.set(expdns, "write_hostname", @write_hostname)
+      Ops.set(expdns, "write_hostname", write_hostname)
       deep_copy(expdns)
     end
 
@@ -482,7 +482,7 @@ module Yast
         0
       )
 
-      if has_dhcp && @dhcp_hostname
+      if has_dhcp && dhcp_hostname
         # Summary text
         summary = Summary.AddListItem(summary, _("Hostname: Set by DHCP"))
       elsif Ops.greater_than(Builtins.size(@hostname), 0)
@@ -495,7 +495,7 @@ module Yast
           )
         )
       end
-      if !@write_hostname
+      if !write_hostname
         summary = Summary.AddListItem(
           summary,
           _("Hostname will not be written to /etc/hosts")
@@ -554,7 +554,7 @@ module Yast
       if Ops.greater_than(
         Builtins.size(NetworkInterfaces.Locate("BOOTPROTO", "dhcp")),
         0
-      ) || @dhcp_hostname
+      ) || dhcp_hostname
         dhcp_data = GetDHCPHostnameIP()
         Builtins.y2milestone("Got DHCP-configured data: %1", dhcp_data)
       end
