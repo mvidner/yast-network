@@ -39,9 +39,10 @@ module Yast
     HOSTNAME_FILE = "hostname".freeze
     HOSTNAME_PATH = "/etc/" + HOSTNAME_FILE
 
+    # Make these visible to YaPI::NETWORK.pm
     publish variable: :dhcp_hostname, type: "boolean"
     publish variable: :write_hostname, type: "boolean"
-    # now redefine them
+    # now redefine them with {Yast::Box}
     box_accessor :dhcp_hostname
     box_accessor :write_hostname
 
@@ -83,6 +84,7 @@ module Yast
       @dhcp_hostname_box = Yast2::SysconfigBooleanBox.new(path: "#{dpath}.DHCLIENT_SET_HOSTNAME")
       @write_hostname_box = Yast2::SysconfigBooleanBox.new(path: "#{dpath}.WRITE_HOSTNAME_TO_HOSTS")
 
+      # sysconfig agents need explicit flushing :-/
       @sysconfig_dhcp = Yast2::SysconfigBoxGroup.new(path: dpath)
       @sysconfig_dhcp << @dhcp_hostname_box
       @sysconfig_dhcp << @write_hostname_box
@@ -296,6 +298,9 @@ module Yast
     def Read
       return true if @initialized == true
 
+      # ugh, this is hard to understand for readers.
+      # the intent is to SCR read? no, to remember the state before
+      # we may modify it. add an alias?
       @dhcp_hostname_box.reset
       @write_hostname_box.reset
 
