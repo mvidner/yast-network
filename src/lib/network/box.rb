@@ -17,6 +17,39 @@ class Module
 end
 
 module Yast2
+  # By including this you get a {#logger} method that does NOT log by default.
+  # It returns a class-level `logger` attribute, initialized to {NullLogger}
+  # but you can assign a real one.
+  module LoggerMethod
+    def logger
+      self.class.logger
+    end
+
+    class << self
+      def included(othermod)
+        othermod.extend(ClassMethods)
+      end
+    end
+
+    module ClassMethods
+      def logger
+        @logger ||= NullLogger.new
+      end
+
+      def logger=(l)
+        @logger = l
+      end
+    end
+
+    class NullLogger < ::Logger
+      def initialize(*args)
+      end
+
+      def add(*args, &block)
+      end
+    end
+  end
+
   # A Box is a wrapper for a value. So it has two methods,
   # {#value} (aliased as {#read}) and {#value=} (aliased as {#write}).
   # That is not useful in itself, but specialized boxes build upon this
@@ -52,7 +85,9 @@ module Yast2
     # (If we said `alias read value`, they wouldn't.)
 
     alias_method :read, :value
-    alias_method :write, :value=
+    alias_method :write, :"value="
+
+    include LoggerMethod
   end
 
   # A {Box} that translates *value* access
@@ -66,10 +101,13 @@ module Yast2
     end
 
     def value
-      Yast::SCR.Read(@path)
+      v = Yast::SCR.Read(@path)
+      logger.info "SCR.Read(#{@path}) -> #{v.inspect}"
+      v
     end
 
     def value=(v)
+      logger.info "SCR.Write(#{@path}, #{v.inspect})"
       Yast::SCR.Write(@path, v)
       v
     end

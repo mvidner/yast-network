@@ -1,6 +1,12 @@
 require_relative "test_helper"
 require "network/box"
 
+module Yast2
+  class ScrBox
+    self.logger = Logger.new(STDOUT)
+  end
+end
+
 describe Module do
   class BoxAccessorTest
     box_accessor :foo
