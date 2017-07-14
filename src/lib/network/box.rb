@@ -27,6 +27,24 @@ module Yast2
   # - reinterpreting the value: {BooleanBox}
   #
   # FIXME: how does this relate to CFA?!
+  #
+  # Motivation:
+  #
+  # In various places across YaST we need to modify a sysconfig variable or
+  # two. This is considered trivial enough that it is done directly with low
+  # level SCR access. But common patterns emerge:
+  #
+  # - was the setting modified by the user?
+  # - do we need to flush the agent (with SCR.Write(path, nil))
+  # - converting strings to numbers and booleans
+  #
+  # The use case of Box is to represent one setting with one object that
+  # handles these common details.
+  #
+  # Disadvantages:
+  # Well, it adds many small classes that you must learn. It is a barrier to
+  # understanding at first, because the resulting behavior is composed from
+  # little pieces.
   class Box
     attr_accessor :value
 
