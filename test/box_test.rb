@@ -37,16 +37,16 @@ describe "Box" do
     it "needs to fill the reading cache" do
       test_values.each do |v|
         subj = described_class.new(lower)
-        expect(lower).to receive(:value).once
+        expect(lower).to receive(:value).once.and_return(v)
 
         _ = subj.value
       end
     end
 
-    it "caches reading before writing" do
+    it "caches reading before/without writing" do
       test_values.each do |v|
         subj = described_class.new(lower)
-        expect(lower).to receive(:value).once
+        expect(lower).to receive(:value).once.and_return(v)
 
         _ = subj.value
         _ = subj.value
@@ -101,7 +101,7 @@ describe "Box" do
   end
 
   describe Yast2::ScrBox do
-    let(:paths) { [ ".my.path", path(".your.path") ] }
+    let(:paths) { [".my.path", path(".your.path")] }
 
     describe "#value" do
       it "uses SCR.Read" do
@@ -118,9 +118,9 @@ describe "Box" do
 
     describe "#value=" do
       it "uses SCR.Write" do
-        test_values.each do |v|
-          paths.each do |p|
-            subj = described_class.new(path: ".my.path")
+        paths.each do |p|
+          test_values.each do |v|
+            subj = described_class.new(path: p)
             expect(Yast::SCR)
               .to receive(:Write).with(Yast::Path, v).and_return(true)
             expect(subj.value = v).to eq v
