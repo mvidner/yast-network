@@ -231,6 +231,8 @@ module Yast2
   # SCR.Write(".sysconfig.locale.LANGUAGE", "Quenya")
   # SCR.Write(".sysconfig.locale", nil)
   class SysconfigBoxGroup
+    include LoggerMethod
+
     def initialize(path:)
       @members = []
       path = Yast::Path.new(path) if path.is_a? ::String
@@ -247,7 +249,10 @@ module Yast2
     # and if any of them really needed it, commit the group.
     def commit
       changed = @members.map(&:commit).any?
-      Yast::SCR::Write(@commit_path, nil) if changed
+      if changed
+        logger.info "Flushing: SCR.Write(#{@commit_path}, nil)"
+        Yast::SCR::Write(@commit_path, nil)
+      end
       changed
     end
 

@@ -31,6 +31,7 @@
 # respecting DHCP.
 require "yast"
 require "network/box"
+Yast2::Box.logger = Yast::Y2Logger.instance
 
 module Yast
   class DNSClass < Module

@@ -1,11 +1,9 @@
 require_relative "test_helper"
 require "network/box"
 
-module Yast2
-  class ScrBox
-    self.logger = Logger.new(STDOUT)
-  end
-end
+test_logger = Logger.new(STDOUT)
+Yast2::ScrBox.logger = test_logger
+Yast2::SysconfigBoxGroup.logger = test_logger
 
 describe Module do
   class BoxAccessorTest
