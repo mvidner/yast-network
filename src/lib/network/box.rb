@@ -233,6 +233,7 @@ module Yast2
   class SysconfigBoxGroup
     def initialize(path:)
       @members = []
+      path = Yast::Path.new(path) if path.is_a? ::String
       @commit_path = path
     end
 

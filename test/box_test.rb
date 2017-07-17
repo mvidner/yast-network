@@ -260,6 +260,35 @@ describe "Box" do
     end
 
     describe "#commit" do
+      it "does not flush if no members exist" do
+        expect(Yast::SCR)
+          .to_not receive(:Write).with(Yast::Path, nil)
+        expect(subject.commit).to eq(false)
+      end
+
+      it "does not flush if no members need it" do
+        b1 = Yast2::StagingBox.new(double)
+        b2 = Yast2::StagingBox.new(double)
+        subject << b1
+        subject << b2
+        expect(b1).to receive(:commit).and_return(false)
+        expect(b2).to receive(:commit).and_return(false)
+        expect(Yast::SCR)
+          .to_not receive(:Write).with(Yast::Path, nil)
+        expect(subject.commit).to eq(false)
+      end
+
+      it "flushes if a member needs it" do
+        b1 = Yast2::StagingBox.new(double)
+        b2 = Yast2::StagingBox.new(double)
+        subject << b1
+        subject << b2
+        expect(b1).to receive(:commit).and_return(true)
+        expect(b2).to receive(:commit).and_return(false)
+        expect(Yast::SCR)
+          .to receive(:Write).with(Yast::Path, nil).and_return(true)
+        expect(subject.commit).to eq(true)
+      end
     end
   end
 end
